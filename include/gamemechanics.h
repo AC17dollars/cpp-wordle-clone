@@ -4,13 +4,12 @@
 #include <time.h>
 #include <string>
 
-#define PATH_TO_WORDFILE "../../dictionary/5lettersword.txt"
-#define PATH_TO_WORDFILE_SELECT "../../dictionary/words_alpha.txt"
-
 class Game_mec
 {
 
 public:
+    // Directory holding the dictionary files; set by the app at startup.
+    static std::string dictionaryDir;
     static std::string hidword;
     static bool game_started;
     static int no_of_guesses;

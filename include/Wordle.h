@@ -7,8 +7,6 @@
 #include "gamemechanics.h"
 #include "timer.h"
 
-#define PATH_TO_ICON "../../img/Wordle.ico"
-
 // Tile / key states (also used to pick colours).
 enum CellState { CS_EMPTY, CS_FILLED, CS_ABSENT, CS_PRESENT, CS_CORRECT };
 

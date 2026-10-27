@@ -5,16 +5,15 @@ parent directory:
     build/static/   wxWidgets linked statically (self-contained binary)
     build/dynamic/  wxWidgets linked as dylibs, copied next to the binary
 
-Each build expects the matching wxWidgets build (static / shared). Run each
-binary from its own folder so the ../../img and ../../dictionary paths resolve.
-Whichever wxWidgets build is missing is skipped.
+Assets are located relative to the executable, so a built binary runs from any
+working directory. Whichever wxWidgets build is missing is skipped.
 """
 import os
 import re
 import shutil
 import subprocess
 
-ROOT = os.path.dirname(os.path.abspath(__file__))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/..
 os.chdir(ROOT)
 
 WX_STATIC = "../wxWidgets-3.3.4/build-macos/wx-config"
@@ -24,7 +23,7 @@ WX_DYLIB_RE = re.compile(r"/wxWidgets-3.3.4/.*libwx.*\.dylib$")
 
 SRC = [
     "src/main.cpp", "src/Wordle.cpp", "src/timer.cpp", "src/gamemechanics.cpp",
-    "src/dock_icon_mac.mm",
+    "src/assets.cpp", "src/platform/dock_icon_mac.mm",
 ]
 
 
@@ -88,7 +87,7 @@ def main():
     else:
         print(f"skip dynamic: {WX_SHARED} missing")
 
-    print("Done. Run from a build folder, e.g.:  cd build/static && ./Wordle")
+    print("Done. Run it with:  ./build/static/Wordle   (or build/dynamic/Wordle)")
 
 
 if __name__ == "__main__":

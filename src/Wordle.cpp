@@ -1,4 +1,5 @@
 #include "Wordle.h"
+#include "assets.h"
 
 // NYT-Wordle palette.
 namespace
@@ -128,7 +129,7 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 	: wxFrame(parent, id, title, pos, size, style)
 {
 	SetBackgroundColour(WHITE);
-	SetIcon(wxIcon(wxT(PATH_TO_ICON), wxBITMAP_TYPE_ICO));
+	SetIcon(wxIcon(AssetPath("images/Wordle.ico"), wxBITMAP_TYPE_ICO));
 
 	wxMenuBar *mb = new wxMenuBar();
 	wxMenu *game = new wxMenu();
