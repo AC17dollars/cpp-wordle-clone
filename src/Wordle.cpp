@@ -7,8 +7,16 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 {
 
 	this->SetSizeHints(wxDefaultSize, wxDefaultSize);
+
+	// Fixed palette so the look matches across platforms/themes. The original
+	// wxSYS_COLOUR_* values render grey/white on Windows but near-black on
+	// macOS dark mode, which broke the intended appearance.
+	const wxColour kBg(0, 0, 0);            // window background
+	const wxColour kCell(128, 128, 128);    // empty grid cell
+	const wxColour kText(230, 230, 230);    // labels and letters
+
 	this->SetIcon(wxIcon(wxT(PATH_TO_ICON), wxBITMAP_TYPE_ICO));
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
+	this->SetBackgroundColour(kBg);
 
 	MenuBar = new wxMenuBar(0);
 	MenuBar->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
@@ -46,22 +54,22 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 
 	StatusStaticText = new wxStaticText(this, wxID_ANY, wxT("Please Start a New Game from New Menu!"), wxDefaultPosition, wxDefaultSize, 0);
 	StatusStaticText->Wrap(-1);
-	StatusStaticText->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-	StatusStaticText->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
+	StatusStaticText->SetForegroundColour(kText);
+	StatusStaticText->SetBackgroundColour(kBg);
 
 	BagSizer->Add(StatusStaticText, wxGBPosition(3, 8), wxGBSpan(1, 5), wxALL, 5);
 
 	TimerStaticText = new wxStaticText(this, wxID_ANY, wxT("Timer: 00:00:00"), wxDefaultPosition, wxDefaultSize, 0);
 	TimerStaticText->Wrap(-1);
-	TimerStaticText->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-	TimerStaticText->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
+	TimerStaticText->SetForegroundColour(kText);
+	TimerStaticText->SetBackgroundColour(kBg);
 
 	BagSizer->Add(TimerStaticText, wxGBPosition(4, 10), wxGBSpan(1, 1), wxALL, 5);
 
 	EnterWordText = new wxStaticText(this, wxID_ANY, wxT("Enter the word:"), wxDefaultPosition, wxDefaultSize, 0);
 	EnterWordText->Wrap(-1);
-	EnterWordText->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-	EnterWordText->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
+	EnterWordText->SetForegroundColour(kText);
+	EnterWordText->SetBackgroundColour(kBg);
 
 	BagSizer->Add(EnterWordText, wxGBPosition(3, 4), wxGBSpan(1, 2), wxALL, 5);
 
@@ -74,6 +82,8 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 #else
 	TextBox->SetMaxLength(5);
 #endif
+	TextBox->SetBackgroundColour(*wxWHITE);
+	TextBox->SetForegroundColour(*wxBLACK);
 	BagSizer->Add(TextBox, wxGBPosition(3, 6), wxGBSpan(1, 2), wxALL, 5);
 
 	GameGrid = new wxGrid(this, ID_GameGrid, wxDefaultPosition, wxDefaultSize, 0);
@@ -115,18 +125,18 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 	// Label Appearance
 
 	// Cell Defaults
-	GameGrid->SetDefaultCellBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_3DDKSHADOW));
-	GameGrid->SetDefaultCellTextColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+	GameGrid->SetDefaultCellBackgroundColour(kCell);
+	GameGrid->SetDefaultCellTextColour(kText);
 	GameGrid->SetDefaultCellFont(wxFont(17, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxT("Calibri")));
 	GameGrid->SetDefaultCellAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-	GameGrid->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+	GameGrid->SetBackgroundColour(kBg);
 
 	BagSizer->Add(GameGrid, wxGBPosition(4, 3), wxGBSpan(6, 7), wxALL, 5);
 
 	LettersUsedText = new wxStaticText(this, wxID_ANY, wxT("LettersUsed:"), wxDefaultPosition, wxDefaultSize, 0);
 	LettersUsedText->Wrap(-1);
-	LettersUsedText->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-	LettersUsedText->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
+	LettersUsedText->SetForegroundColour(kText);
+	LettersUsedText->SetBackgroundColour(kBg);
 
 	BagSizer->Add(LettersUsedText, wxGBPosition(5, 10), wxGBSpan(1, 2), wxALL, 5);
 
@@ -161,8 +171,8 @@ MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, con
 	// Label Appearance
 
 	// Cell Defaults
-	LettersUsedGrid->SetDefaultCellBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT));
-	LettersUsedGrid->SetDefaultCellTextColour(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT));
+	LettersUsedGrid->SetDefaultCellBackgroundColour(kBg);
+	LettersUsedGrid->SetDefaultCellTextColour(kText);
 	LettersUsedGrid->SetDefaultCellAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
 	BagSizer->Add(LettersUsedGrid, wxGBPosition(6, 10), wxGBSpan(6, 4), wxALL, 5);
 
