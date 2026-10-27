@@ -1,6 +1,22 @@
+# Wordle 2.0
+
+A C++ / wxWidgets Wordle clone. Version 2.0 is a cross-platform modernization of
+the original college project:
+
+- Builds and runs on macOS (wxWidgets 3.3.4), alongside Windows/Linux
+- Authentic NYT-style Wordle UI (custom-drawn tiles + on-screen keyboard)
+- Corrected duplicate-letter scoring
+- Self-contained binary — dictionary and icon are embedded
+- Clean, separated project layout and a Python build script
+
+<p align="center">
+  <img src="docs/screenshot.png" alt="Wordle 2.0 running on macOS" width="420">
+</p>
 
 ## Binaries
-Windows: [Wordle v1.1](https://github.com/AC17dollars/cpp-wordle-clone/releases/tag/v1.1)
+
+- 2.0 — build from source (see below)
+- Windows 1.1 (original): [Wordle v1.1](https://github.com/AC17dollars/cpp-wordle-clone/releases/tag/v1.1)
 
 ## Project layout
 
