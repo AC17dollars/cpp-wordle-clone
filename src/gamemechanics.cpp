@@ -90,142 +90,49 @@ void Game_mec::let_checker(std::string s) // check if word is correct or incorre
     if posn[x]=2 right letter in wrong position
 */
 {
-    for (int i = 0; i < hidword.length(); i++)
+    const int n = (int)hidword.length();
+
+    // Count each letter in the answer; greens consume from this first so the
+    // remaining counts decide which non-green letters can be yellow.
+    int remaining[26] = {0};
+    for (int i = 0; i < n; i++)
+        remaining[hidword[i] - 'a']++;
+
+    // Pass 1: correct letter in correct position.
+    for (int i = 0; i < n; i++)
     {
-        posn[i] = 0;
-    }
-    if (hidword == s)
-    {
-        status = 1;
-        for (int i = 0; i < hidword.length(); i++)
+        if (s[i] == hidword[i])
         {
             posn[i] = 1;
+            remaining[s[i] - 'a']--;
+        }
+        else
+        {
+            posn[i] = 0;
         }
     }
-    else
-    {
-        for (int i = 0; i < hidword.length(); i++)
-        {
-            int y = 0;
-            for (int j = 0; j < hidword.length(); j++)
-            {
 
-                if (s[i] != hidword[j] && y == 0)
-                {
-                    posn[i] = 0;
-                }
-                else if (s[i] == hidword[j])
-                {
-                    status = 2;
-                    if (i == j)
-                    {
-                        posn[i] = 1;
-                        break;
-                    }
-                    else
-                    {
-                        posn[i] = 2;
-                        y = 1;
-                    }
-                }
-            }
+    // Pass 2: correct letter in wrong position, while that letter is still
+    // available in the answer (so duplicates are not over-counted).
+    for (int i = 0; i < n; i++)
+    {
+        if (posn[i] != 1 && remaining[s[i] - 'a'] > 0)
+        {
+            posn[i] = 2;
+            remaining[s[i] - 'a']--;
         }
     }
-    std::string repeat = s;
-    std::string hwordd = hidword;
-    int posin1[6], posin2[6], posin3[6], posin4[6];
-    for (int i = 0; i < 6; i++)
-    {
-        posin1[i] = 0;
-        posin2[i] = 0;
-        posin3[i] = 0;
-        posin4[i] = 0;
-    }
-    for (int i = 0; i < hidword.length(); i++)
-    {
-        for (int j = 0; j < hwordd.length(); j++)
-        {
-            if (i == j)
-            {
-                continue;
-            }
-            if (hidword[i] == hwordd[j])
-            {
-                posin1[i]++;
-                posin2[i]++;
-                posin3[i]++;
-                posin4[i]++;
-            }
-        }
-    }
-    for (int i = 0; i < s.length(); i++)
-    {
-        int po = 5;
-        for (int j = 0; j < repeat.length(); j++)
-        {
-            if (j == i)
-            {
-                continue;
-            }
-            if (s[i] == repeat[j])
-            {
 
-                for (int k = 0; k < hidword.length(); k++)
-                {
-                    if (hidword[k] == s[i])
-                    {
-                        po = k;
-                        break;
-                    }
-                }
-                if (posn[i] == 1 && posn[j] == 2)
-                {
-                    if (posin1[po] <= 0)
-                    {
-                        posn[j] = 0;
-                    }
-                    else
-                    {
-                        posin1[po]--;
-                    }
-                }
-                if (posn[i] == 2 && posn[j] == 1)
-                {
-                    if (posin2[po] <= 0)
-                    {
-                        posn[i] = 0;
-                    }
-                    else
-                    {
-                        posin2[po]--;
-                    }
-                }
-                if (posn[i] == 2 && posn[j] == 2)
-                {
-                    if (i < j)
-                    {
-                        if (posin3[po] <= 0)
-                        {
-                            posn[j] = 0;
-                        }
-                        else
-                        {
-                            posin3[po]--;
-                        }
-                    }
-                    else if (j < i)
-                    {
-                        if (posin4[po] <= 0)
-                        {
-                            posn[i] = 0;
-                        }
-                        else
-                        {
-                            posin4[po]--;
-                        }
-                    }
-                }
-            }
-        }
+    // status: 1 all correct, 2 some correct letters, 0 none.
+    status = 0;
+    bool allCorrect = true;
+    for (int i = 0; i < n; i++)
+    {
+        if (posn[i] != 0)
+            status = 2;
+        if (posn[i] != 1)
+            allCorrect = false;
     }
+    if (allCorrect)
+        status = 1;
 }
