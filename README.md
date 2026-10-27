@@ -5,18 +5,20 @@ Windows: [Wordle v1.1](https://github.com/AC17dollars/cpp-wordle-clone/releases/
 ## Project layout
 
 ```
-assets/           bundled data (resolved relative to the executable at runtime)
+assets/           bundled data (compiled into the binary; not needed at runtime)
   dictionary/       word lists
-  images/           icon + title bitmap
+  images/           icon
 include/          headers
 src/              portable sources (entry point, game logic, UI)
   platform/         OS-specific files (macOS dock icon, Windows resource)
-scripts/          build scripts
+scripts/          build scripts (incl. embed_assets.py)
 ```
 
 Game logic (`src/gamemechanics.cpp`) is GUI-free; the UI (`src/Wordle.cpp`) and
-platform glue (`src/platform/`, `src/assets.cpp`) sit on top. Assets are located
-relative to the executable, so a built binary runs from any working directory.
+platform glue (`src/platform/`) sit on top. `scripts/embed_assets.py` turns the
+files in `assets/` into a C++ byte array (`build/generated/embedded_assets.cpp`)
+that is compiled in, so the resulting binary is fully self-contained — it embeds
+its dictionary and icon and needs no external files at runtime.
 
 ## Compilation
 
@@ -26,8 +28,11 @@ relative to the executable, so a built binary runs from any working directory.
 
 ### Windows
 
+Generate the embedded assets first, then compile it alongside the sources:
+
 ```
-g++ src/*.cpp src/platform/icon.res -o build/release/Wordle.exe -I include -I path/to/wxWidgets/315/include -I path/to/wxWidgets/315/lib/gcc_dll/mswu -L path/to/wxWidgets/315/lib/gcc_dll -l wxmsw31u_core -l wxbase31u -mwindows
+python scripts/embed_assets.py build/generated
+g++ src/*.cpp build/generated/embedded_assets.cpp src/platform/icon.res -o build/release/Wordle.exe -I include -I build/generated -I path/to/wxWidgets/315/include -I path/to/wxWidgets/315/lib/gcc_dll/mswu -L path/to/wxWidgets/315/lib/gcc_dll -l wxmsw31u_core -l wxbase31u -mwindows
 ```
 
 ### macOS (wxWidgets 3.3.4)
@@ -59,15 +64,18 @@ mkdir -p build-macos-shared && cd build-macos-shared
 ../configure --disable-debug --with-osx_cocoa && make -j$(sysctl -n hw.ncpu)
 ```
 
-Then build the game (whichever wxWidgets build is missing is skipped):
+Then build the game (the script embeds the assets automatically; whichever
+wxWidgets build is missing is skipped):
 
 ```
 python3 scripts/build.py
 ```
 
-The `dynamic` build depends only on the wxWidgets dylibs, which are copied into
-`build/dynamic/` beside the executable (via `@loader_path`); wxWidgets' own
-dependencies stay baked into those dylibs. Run either binary from anywhere:
+Both builds embed the dictionary and icon, so each is self-contained for its
+assets. The `static` build is a single self-contained binary; the `dynamic`
+build additionally relies on the wxWidgets dylibs, which are copied into
+`build/dynamic/` beside the executable (via `@loader_path`). Run either from
+anywhere:
 
 ```
 ./build/static/Wordle     # or: ./build/dynamic/Wordle

@@ -1,13 +1,13 @@
-// Sets the macOS Dock icon at runtime (ImageIO reads .ico fine).
+// Sets the macOS Dock icon at runtime from embedded .ico bytes.
 #import <AppKit/AppKit.h>
+#include <cstddef>
 
-void SetMacDockIcon(const char *path)
+void SetMacDockIcon(const unsigned char *data, size_t len)
 {
-    @autoreleasepool
-    {
-        NSImage *img = [[NSImage alloc]
-            initWithContentsOfFile:[NSString stringWithUTF8String:path]];
-        if (img)
-            [NSApp setApplicationIconImage:img];
-    }
+	@autoreleasepool
+	{
+		NSImage *img = [[NSImage alloc] initWithData:[NSData dataWithBytes:data length:len]];
+		if (img)
+			[NSApp setApplicationIconImage:img];
+	}
 }

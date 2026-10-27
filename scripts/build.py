@@ -5,25 +5,27 @@ parent directory:
     build/static/   wxWidgets linked statically (self-contained binary)
     build/dynamic/  wxWidgets linked as dylibs, copied next to the binary
 
-Assets are located relative to the executable, so a built binary runs from any
-working directory. Whichever wxWidgets build is missing is skipped.
+Assets are embedded into the binary (see embed_assets.py), so the result needs
+no external files at runtime. Whichever wxWidgets build is missing is skipped.
 """
 import os
 import re
 import shutil
 import subprocess
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/..
 os.chdir(ROOT)
 
 WX_STATIC = "../wxWidgets-3.3.4/build-macos/wx-config"
 WX_SHARED = "../wxWidgets-3.3.4/build-macos-shared/wx-config"
+GEN_DIR = "build/generated"
 WXLIBS = "core,base"
 WX_DYLIB_RE = re.compile(r"/wxWidgets-3.3.4/.*libwx.*\.dylib$")
 
 SRC = [
     "src/main.cpp", "src/Wordle.cpp", "src/timer.cpp", "src/gamemechanics.cpp",
-    "src/assets.cpp", "src/platform/dock_icon_mac.mm",
+    "src/platform/dock_icon_mac.mm", f"{GEN_DIR}/embedded_assets.cpp",
 ]
 
 
@@ -39,7 +41,7 @@ def build_variant(wxc, out_dir):
     shutil.rmtree(out_dir, ignore_errors=True)
     os.makedirs(out_dir)
     print(f"==> {out_dir}  [{subprocess.check_output([wxc, '--selected-config']).decode().strip()}]")
-    run(["clang++", "-std=c++17", "-O2", *SRC, "-I", "include",
+    run(["clang++", "-std=c++17", "-O2", *SRC, "-I", "include", "-I", GEN_DIR,
          *wx_config(wxc, "--cxxflags"), *wx_config(wxc, "--libs", WXLIBS),
          "-framework", "AppKit", "-o", f"{out_dir}/Wordle"])
 
@@ -75,6 +77,9 @@ def bundle_dylibs(binary, libdir):
 
 
 def main():
+    # Turn assets/ into a compilable C++ byte array embedded into the binary.
+    run([sys.executable, "scripts/embed_assets.py", GEN_DIR])
+
     if os.access(WX_STATIC, os.X_OK):
         build_variant(WX_STATIC, "build/static")
     else:

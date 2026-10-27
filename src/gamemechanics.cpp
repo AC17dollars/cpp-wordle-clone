@@ -1,7 +1,9 @@
 #include "gamemechanics.h"
+#include <sstream>
 
 // static initialization
-std::string Game_mec::dictionaryDir = "../../assets/dictionary"; // overridden at startup
+std::string Game_mec::wordsSelect = ""; // injected at startup
+std::string Game_mec::wordsValid = "";  // injected at startup
 std::string Game_mec::hidword = "";
 int Game_mec::random = 0;
 int Game_mec::a = 0;
@@ -19,7 +21,7 @@ int Game_mec::no_of_guesses = 0;
 void Game_mec::gethidword()
 {
     a = 1;
-    std::ifstream fptr((dictionaryDir + "/words_alpha.txt").c_str());
+    std::istringstream fptr(wordsSelect);
     randnum(); // function generates random number
     // cout<<random<<endl;
     if (random < 2)
@@ -31,7 +33,6 @@ void Game_mec::gethidword()
         fptr.seekg((random * 5) + (2 * (random - 1)), std::ios::beg); // places file pointer based on random number (eg. if num=4 place in 5th word)
     }
     fptr >> hidword;
-    fptr.close();
     Game_mec::game_started = true;
 }
 
@@ -54,17 +55,15 @@ void Game_mec::randnum() // generates random number between 0 to 5757 .i.e. no o
 bool Game_mec::val_checker(std::string s) // checks if word is valid or not and return 0 if invalid return 1 if valid
 {
     std::string q;
-    std::ifstream fptr((dictionaryDir + "/5lettersword.txt").c_str());
+    std::istringstream fptr(wordsValid);
     while (fptr.peek() != EOF)
     {
         fptr >> q;
         if (s == q)
         {
-            fptr.close();
             return true;
         }
     }
-    fptr.close();
     return false;
 }
 

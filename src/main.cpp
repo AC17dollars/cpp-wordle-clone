@@ -1,8 +1,8 @@
 #include "Wordle.h"
-#include "assets.h"
+#include "embedded_assets.h"
 
 #ifdef __APPLE__
-void SetMacDockIcon(const char *path); // defined in dock_icon_mac.mm
+void SetMacDockIcon(const unsigned char *data, size_t len); // dock_icon_mac.mm
 #endif
 
 class MyApp : public wxApp
@@ -10,10 +10,11 @@ class MyApp : public wxApp
 public:
     virtual bool OnInit()
     {
-        wxInitAllImageHandlers(); // needed to load the .ico
-        Game_mec::dictionaryDir = AssetPath("dictionary").ToStdString();
+        wxInitAllImageHandlers(); // needed to decode the embedded .ico
+        Game_mec::wordsSelect.assign((const char *)asset_words_select, asset_words_select_len);
+        Game_mec::wordsValid.assign((const char *)asset_words_valid, asset_words_valid_len);
 #ifdef __APPLE__
-        SetMacDockIcon(AssetPath("images/Wordle.ico").ToStdString().c_str());
+        SetMacDockIcon(asset_icon_ico, asset_icon_ico_len);
 #endif
         MainFrame *frame = new MainFrame(NULL);
         frame->Show(true);

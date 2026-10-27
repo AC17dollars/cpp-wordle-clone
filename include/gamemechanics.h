@@ -8,8 +8,9 @@ class Game_mec
 {
 
 public:
-    // Directory holding the dictionary files; set by the app at startup.
-    static std::string dictionaryDir;
+    // Word lists (file contents), injected by the app at startup.
+    static std::string wordsSelect; // list the hidden word is picked from
+    static std::string wordsValid;  // list a guess is validated against
     static std::string hidword;
     static bool game_started;
     static int no_of_guesses;
