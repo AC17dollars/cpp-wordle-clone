@@ -1,356 +1,370 @@
-
 #include "Wordle.h"
 
-///////////////////////////////////////////////////////////////////////////
-
-MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, const wxPoint &pos, const wxSize &size, long style) : wxFrame(parent, id, title, pos, size, style)
+// NYT-Wordle palette.
+namespace
 {
+const wxColour BG(255, 255, 255);
+const wxColour TEXT_DARK(26, 26, 27);
+const wxColour BORDER_EMPTY(211, 214, 223);
+const wxColour BORDER_FILLED(135, 138, 140);
+const wxColour ABSENT(120, 124, 126);
+const wxColour PRESENT(201, 180, 88);
+const wxColour CORRECT(106, 170, 100);
+const wxColour KEY_BG(211, 214, 223);
+const wxColour WHITE(255, 255, 255);
+const wxColour MUTED(120, 124, 126);
+const wxColour ERRORC(211, 70, 70);
 
-	this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-
-	// Fixed palette so the look matches across platforms/themes. The original
-	// wxSYS_COLOUR_* values render grey/white on Windows but near-black on
-	// macOS dark mode, which broke the intended appearance.
-	const wxColour kBg(0, 0, 0);            // window background
-	const wxColour kCell(128, 128, 128);    // empty grid cell
-	const wxColour kText(230, 230, 230);    // labels and letters
-
-	this->SetIcon(wxIcon(wxT(PATH_TO_ICON), wxBITMAP_TYPE_ICO));
-	this->SetBackgroundColour(kBg);
-
-	MenuBar = new wxMenuBar(0);
-	MenuBar->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-
-	FileMenu = new wxMenu();
-	wxMenuItem *StartNewMenuItem;
-	StartNewMenuItem = new wxMenuItem(FileMenu, ID_StartNewGame, wxString(wxT("Start New Game")), wxT("Start a new game"), wxITEM_NORMAL);
-	FileMenu->Append(StartNewMenuItem);
-
-	FileMenu->AppendSeparator();
-
-	wxMenuItem *QuitMenuItem;
-	QuitMenuItem = new wxMenuItem(FileMenu, wxID_EXIT, wxString(wxT("Quit")), wxT("Exit the game"), wxITEM_NORMAL);
-	FileMenu->Append(QuitMenuItem);
-
-	MenuBar->Append(FileMenu, wxT("New"));
-
-	AboutMenu = new wxMenu();
-	wxMenuItem *AuthorsMenuItem;
-	AuthorsMenuItem = new wxMenuItem(AboutMenu, ID_Authors, wxString(wxT("Authors")), wxT("Shows info of authors"), wxITEM_NORMAL);
-	AboutMenu->Append(AuthorsMenuItem);
-
-	MenuBar->Append(AboutMenu, wxT("About"));
-
-	this->SetMenuBar(MenuBar);
-
-	StatusBar = this->CreateStatusBar(1, wxSTB_SIZEGRIP, wxID_ANY);
-	wxGridBagSizer *BagSizer;
-	BagSizer = new wxGridBagSizer(0, 0);
-	BagSizer->SetFlexibleDirection(wxBOTH);
-	BagSizer->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
-
-	WordleTitlename = new wxStaticBitmap(this, wxID_ANY, wxBitmap(wxT(PATH_TO_HEADER), wxBITMAP_TYPE_ANY), wxDefaultPosition, wxDefaultSize, 0);
-	BagSizer->Add(WordleTitlename, wxGBPosition(0, 5), wxGBSpan(2, 3), wxALL, 5);
-
-	StatusStaticText = new wxStaticText(this, wxID_ANY, wxT("Please Start a New Game from New Menu!"), wxDefaultPosition, wxDefaultSize, 0);
-	StatusStaticText->Wrap(-1);
-	StatusStaticText->SetForegroundColour(kText);
-	StatusStaticText->SetBackgroundColour(kBg);
-
-	BagSizer->Add(StatusStaticText, wxGBPosition(3, 8), wxGBSpan(1, 5), wxALL, 5);
-
-	TimerStaticText = new wxStaticText(this, wxID_ANY, wxT("Timer: 00:00:00"), wxDefaultPosition, wxDefaultSize, 0);
-	TimerStaticText->Wrap(-1);
-	TimerStaticText->SetForegroundColour(kText);
-	TimerStaticText->SetBackgroundColour(kBg);
-
-	BagSizer->Add(TimerStaticText, wxGBPosition(4, 10), wxGBSpan(1, 1), wxALL, 5);
-
-	EnterWordText = new wxStaticText(this, wxID_ANY, wxT("Enter the word:"), wxDefaultPosition, wxDefaultSize, 0);
-	EnterWordText->Wrap(-1);
-	EnterWordText->SetForegroundColour(kText);
-	EnterWordText->SetBackgroundColour(kBg);
-
-	BagSizer->Add(EnterWordText, wxGBPosition(3, 4), wxGBSpan(1, 2), wxALL, 5);
-
-	TextBox = new wxTextCtrl(this, wxID_ANY, wxT("GameNotStarted"), wxDefaultPosition, wxDefaultSize, wxTE_CAPITALIZE | wxTE_PROCESS_ENTER);
-#ifdef __WXGTK__
-	if (!TextBox->HasFlag(wxTE_MULTILINE))
+wxColour FillFor(CellState s)
+{
+	switch (s)
 	{
-		TextBox->SetMaxLength(5);
+	case CS_ABSENT: return ABSENT;
+	case CS_PRESENT: return PRESENT;
+	case CS_CORRECT: return CORRECT;
+	default: return BG;
 	}
-#else
-	TextBox->SetMaxLength(5);
-#endif
-	TextBox->SetBackgroundColour(*wxWHITE);
-	TextBox->SetForegroundColour(*wxBLACK);
-	BagSizer->Add(TextBox, wxGBPosition(3, 6), wxGBSpan(1, 2), wxALL, 5);
-
-	GameGrid = new wxGrid(this, ID_GameGrid, wxDefaultPosition, wxDefaultSize, 0);
-
-	// Grid
-	GameGrid->CreateGrid(6, 5);
-	GameGrid->EnableEditing(false);
-	GameGrid->EnableGridLines(true);
-	GameGrid->EnableDragGridSize(false);
-	GameGrid->SetMargins(0, 0);
-
-	//make grid unselectable to be done
-	GameGrid->SetSelectionBackground(wxColour(255, 255, 255, 0));
-	GameGrid->SetSelectionForeground(wxColour(255, 255, 255, 0));
-	GameGrid->SetCellHighlightColour(wxTransparentColour);
-
-	// Columns
-	GameGrid->SetColSize(0, 70);
-	GameGrid->SetColSize(1, 70);
-	GameGrid->SetColSize(2, 70);
-	GameGrid->SetColSize(3, 70);
-	GameGrid->SetColSize(4, 70);
-	GameGrid->EnableDragColMove(false);
-	GameGrid->EnableDragColSize(false);
-	GameGrid->SetColLabelSize(0);
-	GameGrid->SetColLabelAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-
-	// Rows
-	GameGrid->SetRowSize(0, 50);
-	GameGrid->SetRowSize(1, 50);
-	GameGrid->SetRowSize(2, 50);
-	GameGrid->SetRowSize(3, 50);
-	GameGrid->SetRowSize(4, 50);
-	GameGrid->SetRowSize(5, 50);
-	GameGrid->EnableDragRowSize(false);
-	GameGrid->SetRowLabelSize(0);
-	GameGrid->SetRowLabelAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-
-	// Label Appearance
-
-	// Cell Defaults
-	GameGrid->SetDefaultCellBackgroundColour(kCell);
-	GameGrid->SetDefaultCellTextColour(kText);
-	GameGrid->SetDefaultCellFont(wxFont(17, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxT("Calibri")));
-	GameGrid->SetDefaultCellAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-	GameGrid->SetBackgroundColour(kBg);
-
-	BagSizer->Add(GameGrid, wxGBPosition(4, 3), wxGBSpan(6, 7), wxALL, 5);
-
-	LettersUsedText = new wxStaticText(this, wxID_ANY, wxT("LettersUsed:"), wxDefaultPosition, wxDefaultSize, 0);
-	LettersUsedText->Wrap(-1);
-	LettersUsedText->SetForegroundColour(kText);
-	LettersUsedText->SetBackgroundColour(kBg);
-
-	BagSizer->Add(LettersUsedText, wxGBPosition(5, 10), wxGBSpan(1, 2), wxALL, 5);
-
-	LettersUsedGrid = new wxGrid(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0);
-
-	// Grid
-	LettersUsedGrid->CreateGrid(3, 7);
-	LettersUsedGrid->EnableEditing(false);
-	LettersUsedGrid->EnableGridLines(false);
-	LettersUsedGrid->EnableDragGridSize(false);
-	LettersUsedGrid->SetMargins(0, 0);
-
-	// Columns
-	LettersUsedGrid->SetColSize(0, 30);
-	LettersUsedGrid->SetColSize(1, 30);
-	LettersUsedGrid->SetColSize(2, 30);
-	LettersUsedGrid->SetColSize(3, 30);
-	LettersUsedGrid->SetColSize(4, 30);
-	LettersUsedGrid->SetColSize(5, 30);
-	LettersUsedGrid->SetColSize(6, 30);
-	LettersUsedGrid->EnableDragColMove(false);
-	LettersUsedGrid->EnableDragColSize(false);
-	LettersUsedGrid->SetColLabelSize(0);
-	LettersUsedGrid->SetColLabelAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-
-	// Rows
-	LettersUsedGrid->SetRowSize(0, 20);
-	LettersUsedGrid->EnableDragRowSize(true);
-	LettersUsedGrid->SetRowLabelSize(0);
-	LettersUsedGrid->SetRowLabelAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-
-	// Label Appearance
-
-	// Cell Defaults
-	LettersUsedGrid->SetDefaultCellBackgroundColour(kBg);
-	LettersUsedGrid->SetDefaultCellTextColour(kText);
-	LettersUsedGrid->SetDefaultCellAlignment(wxALIGN_CENTER, wxALIGN_CENTER);
-	BagSizer->Add(LettersUsedGrid, wxGBPosition(6, 10), wxGBSpan(6, 4), wxALL, 5);
-
-	this->SetSizer(BagSizer);
-	this->Layout();
-
-	this->Centre(wxBOTH);
-
-	// Connect Events
-	FileMenu->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrame::QuitMenuItemOnMenuSelection), this, QuitMenuItem->GetId());
-	FileMenu->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrame::OnStartNewGame), this, StartNewMenuItem->GetId()); 
-	AboutMenu->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrame::AuthorsOnMenuSelection), this, AuthorsMenuItem->GetId());
-	TextBox->Bind(wxEVT_TEXT_ENTER, wxCommandEventHandler(MainFrame::OnTextEnter), this, TextBox->GetId());
-	m_timer.Bind(wxEVT_TIMER, wxTimerEventHandler(MainFrame::OnUpdateDisplayedTime), this, m_timer.GetId());
+}
+int Rank(CellState s) { return s == CS_CORRECT ? 3 : s == CS_PRESENT ? 2 : s == CS_ABSENT ? 1 : 0; }
 }
 
-MainFrame::~MainFrame()
+///////////////////////////////////////////////////////////////////////////// Tile
+
+Tile::Tile(wxWindow *parent, int size) : wxWindow(parent, wxID_ANY, wxDefaultPosition, wxSize(size, size))
 {
-	// Disconnect Events
+	SetBackgroundStyle(wxBG_STYLE_PAINT);
+	SetMinSize(wxSize(size, size));
+	Bind(wxEVT_PAINT, &Tile::OnPaint, this);
 }
 
-void MainFrame::OnStartNewGame(wxCommandEvent &event)
+void Tile::Set(const wxString &ch, CellState state)
 {
-	GameGrid->ClearGrid();
-	for (int i = 0; i < 6;i++)
-		for (int j = 0; j < 5;j++)
-			GameGrid->SetCellBackgroundColour(i, j, GameGrid->GetDefaultCellBackgroundColour());
-	LettersUsedGrid->ClearGrid();
-	for (int i = 0; i < 3;i++)
-		for (int j = 0; j < 7;j++)
-			LettersUsedGrid->SetCellBackgroundColour(i, j, LettersUsedGrid->GetDefaultCellBackgroundColour());
-	TextBox->Clear();
-	StatusStaticText->SetLabel("Timer will start after entering first guess.");
-	Timer::OnStopTimer(&m_timer, TimerStaticText);
-	TimerStaticText->SetLabel("Timer: 00:00:00");
+	m_ch = ch;
+	m_state = state;
+	Refresh();
+	Update();
+}
+
+void Tile::Reset()
+{
+	m_ch.clear();
+	m_state = CS_EMPTY;
+	Refresh();
+}
+
+void Tile::OnPaint(wxPaintEvent &)
+{
+	wxAutoBufferedPaintDC dc(this);
+	const wxSize sz = GetClientSize();
+	dc.SetBrush(wxBrush(BG));
+	dc.SetPen(*wxTRANSPARENT_PEN);
+	dc.DrawRectangle(0, 0, sz.x, sz.y);
+
+	const bool blank = (m_state == CS_EMPTY || m_state == CS_FILLED);
+	if (blank)
+	{
+		dc.SetBrush(wxBrush(BG));
+		dc.SetPen(wxPen(m_state == CS_FILLED ? BORDER_FILLED : BORDER_EMPTY, 2));
+		dc.DrawRectangle(1, 1, sz.x - 2, sz.y - 2);
+	}
+	else
+	{
+		dc.SetBrush(wxBrush(FillFor(m_state)));
+		dc.SetPen(*wxTRANSPARENT_PEN);
+		dc.DrawRectangle(0, 0, sz.x, sz.y);
+	}
+
+	if (!m_ch.empty())
+	{
+		dc.SetTextForeground(blank ? TEXT_DARK : WHITE);
+		dc.SetFont(wxFont(wxFontInfo(sz.y * 42 / 100).Bold()));
+		const wxSize te = dc.GetTextExtent(m_ch);
+		dc.DrawText(m_ch, (sz.x - te.x) / 2, (sz.y - te.y) / 2);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////// Key
+
+Key::Key(wxWindow *parent, const wxString &label, const wxSize &size,
+		 std::function<void(const wxString &)> onPress)
+	: wxWindow(parent, wxID_ANY, wxDefaultPosition, size), m_label(label), m_onPress(std::move(onPress))
+{
+	SetBackgroundStyle(wxBG_STYLE_PAINT);
+	SetMinSize(size);
+	SetCursor(wxCursor(wxCURSOR_HAND));
+	Bind(wxEVT_PAINT, &Key::OnPaint, this);
+	Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &) { if (m_onPress) m_onPress(m_label); });
+}
+
+void Key::SetState(CellState state)
+{
+	m_state = state;
+	Refresh();
+}
+
+void Key::OnPaint(wxPaintEvent &)
+{
+	wxAutoBufferedPaintDC dc(this);
+	const wxSize sz = GetClientSize();
+	dc.SetBrush(wxBrush(BG));
+	dc.SetPen(*wxTRANSPARENT_PEN);
+	dc.DrawRectangle(0, 0, sz.x, sz.y);
+
+	const bool coloured = (m_state == CS_ABSENT || m_state == CS_PRESENT || m_state == CS_CORRECT);
+	dc.SetBrush(wxBrush(coloured ? FillFor(m_state) : KEY_BG));
+	dc.SetPen(*wxTRANSPARENT_PEN);
+	dc.DrawRoundedRectangle(0, 0, sz.x, sz.y, 5);
+
+	dc.SetTextForeground(coloured ? WHITE : TEXT_DARK);
+	dc.SetFont(wxFont(wxFontInfo(m_label.length() > 1 ? 11 : 16).Bold()));
+	const wxSize te = dc.GetTextExtent(m_label);
+	dc.DrawText(m_label, (sz.x - te.x) / 2, (sz.y - te.y) / 2);
+}
+
+///////////////////////////////////////////////////////////////////////////// MainFrame
+
+MainFrame::MainFrame(wxWindow *parent, wxWindowID id, const wxString &title, const wxPoint &pos,
+					 const wxSize &size, long style)
+	: wxFrame(parent, id, title, pos, size, style)
+{
+	SetBackgroundColour(WHITE);
+	SetIcon(wxIcon(wxT(PATH_TO_ICON), wxBITMAP_TYPE_ICO));
+
+	wxMenuBar *mb = new wxMenuBar();
+	wxMenu *game = new wxMenu();
+	game->Append(ID_StartNewGame, wxT("New Game\tCtrl-N"));
+	game->AppendSeparator();
+	game->Append(wxID_EXIT, wxT("Quit"));
+	mb->Append(game, wxT("Game"));
+	wxMenu *help = new wxMenu();
+	help->Append(ID_Authors, wxT("About"));
+	mb->Append(help, wxT("Help"));
+	SetMenuBar(mb);
+
+	wxBoxSizer *rootS = new wxBoxSizer(wxVERTICAL);
+
+	// header: title + timer
+	wxBoxSizer *header = new wxBoxSizer(wxHORIZONTAL);
+	wxStaticText *titleText = new wxStaticText(this, wxID_ANY, wxT("Wordle"));
+	titleText->SetFont(wxFont(wxFontInfo(30).Bold()));
+	titleText->SetForegroundColour(TEXT_DARK);
+	m_timerText = new wxStaticText(this, wxID_ANY, wxT("Time Elapsed: 00:00:00"));
+	m_timerText->SetForegroundColour(MUTED);
+	header->Add(titleText, 0, wxALIGN_CENTER_VERTICAL);
+	header->AddStretchSpacer();
+	header->Add(m_timerText, 0, wxALIGN_CENTER_VERTICAL);
+	rootS->Add(header, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 16);
+	rootS->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
+
+	// status message
+	m_status = new wxStaticText(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDefaultSize,
+								wxALIGN_CENTRE_HORIZONTAL | wxST_NO_AUTORESIZE);
+	m_status->SetFont(wxFont(wxFontInfo(12).Bold()));
+	rootS->Add(m_status, 0, wxEXPAND | wxTOP, 8);
+
+	// board
+	const int tile = 60;
+	wxGridSizer *grid = new wxGridSizer(6, 5, 6, 6);
+	for (int r = 0; r < 6; r++)
+		for (int c = 0; c < 5; c++)
+		{
+			m_board[r][c] = new Tile(this, tile);
+			grid->Add(m_board[r][c]);
+		}
+	rootS->Add(grid, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP, 10);
+
+	rootS->AddStretchSpacer();
+
+	// keyboard
+	const char *rows[3] = {"QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"};
+	wxBoxSizer *kb = new wxBoxSizer(wxVERTICAL);
+	for (int r = 0; r < 3; r++)
+	{
+		wxBoxSizer *row = new wxBoxSizer(wxHORIZONTAL);
+		if (r == 2)
+			AddKey(row, wxT("ENTER"), 58);
+		for (const char *p = rows[r]; *p; ++p)
+			m_keys[(wxChar)*p] = AddKey(row, wxString(wxUniChar(*p)), 40);
+		if (r == 2)
+			AddKey(row, wxT("DEL"), 58);
+		kb->Add(row, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 6);
+	}
+	rootS->Add(kb, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 16);
+
+	SetSizer(rootS);
+	SetMinSize(wxSize(520, 760));
+
+	// timers
+	m_clock.SetOwner(this, 1);
+	m_reveal.SetOwner(this, 2);
+	Bind(wxEVT_TIMER, &MainFrame::OnClock, this, 1);
+	Bind(wxEVT_TIMER, &MainFrame::OnReveal, this, 2);
+
+	// input + menus
+	Bind(wxEVT_CHAR_HOOK, &MainFrame::OnCharHook, this);
+	Bind(wxEVT_MENU, [this](wxCommandEvent &) { NewGame(); }, ID_StartNewGame);
+	Bind(wxEVT_MENU, [this](wxCommandEvent &) { Close(true); }, wxID_EXIT);
+	Bind(wxEVT_MENU, [this](wxCommandEvent &)
+		 { wxMessageBox(wxT("A C++ / wxWidgets Wordle clone.\n\nType a 5-letter word and press Enter."),
+						wxT("About Wordle")); }, ID_Authors);
+
+	NewGame();
+	Centre();
+}
+
+MainFrame::~MainFrame() {}
+
+Key *MainFrame::AddKey(wxSizer *rowSizer, const wxString &label, int width)
+{
+	Key *k = new Key(this, label, wxSize(width, 56), [this](const wxString &l) { HandleKey(l); });
+	rowSizer->Add(k, 0, wxALL, 2);
+	return k;
+}
+
+void MainFrame::SetStatus(const wxString &msg, const wxColour &colour)
+{
+	m_status->SetForegroundColour(colour);
+	m_status->SetLabel(msg);
+}
+
+wxString MainFrame::CurrentGuess() const { return m_rowBuf; }
+
+void MainFrame::NewGame()
+{
+	if (m_reveal.IsRunning())
+		m_reveal.Stop();
+	m_revealing = false;
+	m_row = m_col = m_revealCol = 0;
+	m_rowBuf.clear();
+
+	Timer::OnStopTimer(&m_clock, m_timerText);
+	m_timerText->SetLabel(wxT("Time Elapsed: 00:00:00"));
+
+	for (int r = 0; r < 6; r++)
+		for (int c = 0; c < 5; c++)
+			m_board[r][c]->Reset();
+	for (auto &kv : m_keys)
+		kv.second->SetState(CS_EMPTY);
+	m_keyState.clear();
+	SetStatus(wxT(""), TEXT_DARK);
+
 	Game_mec::no_of_guesses = 0;
-	Game_mec::gethidword();
+	Game_mec::gethidword(); // picks a new word and sets game_started
 }
 
-void MainFrame::OnTextEnter(wxCommandEvent &event)
+void MainFrame::HandleKey(const wxString &label)
 {
-	if (Game_mec::game_started)
+	if (m_revealing)
+		return;
+	if (label == wxT("ENTER"))
 	{
-		wxString text, temp;
-		temp = TextBox->GetValue().MakeUpper();
-		text = temp;
-		if (text.Len() == 5)
-		{
-			// check if valid
-			if (Game_mec::val_checker(temp.MakeLower().ToStdString()))
-			{
-				// start the timer
-				if (Game_mec::no_of_guesses == 0)
-				{
-					Timer::OnTimerStart(&m_timer, TimerStaticText);
-				}
-				// check correct letters position and
-				Game_mec::let_checker(temp.MakeLower().ToStdString());
-
-				// clear status text
-				StatusStaticText->SetLabel("");
-				for (int i = 0; i < 6; i++)
-				{
-					if (GameGrid->GetCellValue(wxGridCellCoords(i, 0)) == "")
-					{
-						for (int j = 0; j < 5; j++)
-						{
-							GameGrid->SetCellValue(wxGridCellCoords(i, j), text.GetChar(j));
-							switch (Game_mec::posn[j])
-							{
-							case 0: // case for wrong letter
-								break;
-							case 1: // case for right letter
-								GameGrid->SetCellBackgroundColour(i, j, wxColour(45, 102, 4));
-								break;
-							case 2: // case for partially right letter
-								GameGrid->SetCellBackgroundColour(i, j, wxColour(240, 158, 43));
-								break;
-							default:
-								break;
-							}
-						}
-						Game_mec::no_of_guesses++;
-						if(Game_mec::no_of_guesses == 6){
-							Timer::OnStopTimer(&m_timer, TimerStaticText);
-							Game_mec::no_of_guesses = 0;
-							Game_mec::game_started = false;
-							temp = Game_mec::hidword;
-							StatusStaticText->SetLabel("You Lost!, The word was " + temp.MakeUpper().ToStdString());
-						}
-						if (Game_mec::status == 1)
-						{
-							Timer::OnStopTimer(&m_timer, TimerStaticText);
-							temp = Game_mec::hidword;
-							StatusStaticText->SetLabel("You Won!, The word was " + temp.MakeUpper().ToStdString());
-							Game_mec::game_started = false;
-						}
-						
-						// call UpdateLettersUsedGrid function
-						UpdateLettersUsedGrid();
-						return;
-					}
-				}
-			}
-			else
-				StatusStaticText->SetLabel("Invalid Word");
-		}
+		SubmitGuess();
+		return;
 	}
-	GameGrid->ForceRefresh();
-	LettersUsedGrid->ForceRefresh();
-}
-void MainFrame::UpdateLettersUsedGrid()
-{
-	wxString text = TextBox->GetValue().MakeUpper();
-	for (int itr = 0; itr < 5; itr++)
+	if (label == wxT("DEL"))
 	{
-		wxGridCellCoords coords = LetterInGrid(text[itr]);
-		if ((coords.GetRow()!=-1)&&(coords.GetCol()!=-1))
-			switch (Game_mec::posn[itr])
-			{
-			case 0: // case for wrong letter
-				break;
-			case 1: // case for right letter
-				LettersUsedGrid->SetCellBackgroundColour(coords.GetRow(), coords.GetCol(), wxColour(45, 102, 4));
-				break;
-			case 2: // case for partially right letter
-				LettersUsedGrid->SetCellBackgroundColour(coords.GetRow(), coords.GetCol(), wxColour(240, 158, 43));
-				break;
-			default:
-				break;
-			}
-		else
+		if (m_col > 0)
 		{
-			for (int i = 0; i < 3; i++)
-			{
-				for (int j = 0; j < 7; j++)
-				{
-					if (LettersUsedGrid->GetCellValue(wxGridCellCoords(i, j)) == "")
-					{
-						LettersUsedGrid->SetCellValue(wxGridCellCoords(i, j), text.GetChar(itr));
-						switch (Game_mec::posn[itr])
-						{
-						case 0: // case for wrong letter
-							break;
-						case 1: // case for right letter
-							LettersUsedGrid->SetCellBackgroundColour(i, j, wxColour(45, 102, 4));
-							break;
-						case 2: // case for partially right letter
-							LettersUsedGrid->SetCellBackgroundColour(i, j, wxColour(240, 158, 43));
-							break;
-						default:
-							break;
-						}
-						goto breakloop;		// the only use case of goto that can't be done using other keywords
-					}
-				}
-			}
-		breakloop:; // to break from entire loop from within nested loop
+			m_col--;
+			m_rowBuf.RemoveLast();
+			m_board[m_row][m_col]->Reset();
 		}
+		return;
 	}
-	TextBox->SetValue("");
+	// a letter
+	if (!Game_mec::game_started || m_row >= 6 || m_col >= 5)
+		return;
+	m_board[m_row][m_col]->Set(label, CS_FILLED);
+	m_rowBuf += label;
+	m_col++;
 }
 
-wxGridCellCoords MainFrame::LetterInGrid(wxString character)
+void MainFrame::SubmitGuess()
 {
-	wxGridCellCoords result;
-	for (int i = 0; i < 3; i++)
+	if (m_revealing || !Game_mec::game_started)
+		return;
+	if (m_col < 5)
 	{
-		for (int j = 0; j < 7; j++)
-		{
-			if (LettersUsedGrid->GetCellValue(i, j) != "" && LettersUsedGrid->GetCellValue(i, j) == character)
-				return (result=wxGridCellCoords(i, j));
-		}
+		SetStatus(wxT("Not enough letters"), MUTED);
+		return;
 	}
-	return (result=wxGridCellCoords(-1, -1));
+	const wxString guess = CurrentGuess();
+	const std::string lower = guess.Lower().ToStdString();
+	if (!Game_mec::val_checker(lower))
+	{
+		SetStatus(wxT("Not in word list"), ERRORC);
+		return;
+	}
+	SetStatus(wxT(""), TEXT_DARK);
+
+	if (Game_mec::no_of_guesses == 0)
+		Timer::OnTimerStart(&m_clock, m_timerText);
+
+	Game_mec::let_checker(lower);
+	for (int j = 0; j < 5; j++)
+		m_pending[j] = Game_mec::posn[j] == 1 ? CS_CORRECT
+					   : Game_mec::posn[j] == 2 ? CS_PRESENT
+												: CS_ABSENT;
+	m_pendingWord = guess;
+	m_revealing = true;
+	m_revealCol = 0;
+	m_reveal.Start(220);
 }
 
-void MainFrame::OnUpdateDisplayedTime(wxTimerEvent& event)
+void MainFrame::OnReveal(wxTimerEvent &)
 {
-	Timer::UpdateDisplayedTime(&m_timer, TimerStaticText);
+	const int j = m_revealCol;
+	m_board[m_row][j]->Set(wxString(m_pendingWord[j]), m_pending[j]);
+	UpgradeKey(m_pendingWord[j], m_pending[j]);
+	if (++m_revealCol < 5)
+		return;
+
+	m_reveal.Stop();
+	m_revealing = false;
+	Game_mec::no_of_guesses++;
+
+	if (m_pendingWord.Lower().ToStdString() == Game_mec::hidword)
+	{
+		Timer::OnStopTimer(&m_clock, m_timerText);
+		SetStatus(wxT("You won!"), CORRECT);
+		Game_mec::game_started = false;
+		return;
+	}
+	m_row++;
+	m_col = 0;
+	m_rowBuf.clear();
+	if (m_row >= 6)
+	{
+		Timer::OnStopTimer(&m_clock, m_timerText);
+		SetStatus(wxT("You lost - the word was ") + wxString(Game_mec::hidword).Upper(), ERRORC);
+		Game_mec::game_started = false;
+	}
+}
+
+void MainFrame::UpgradeKey(wxChar ch, CellState state)
+{
+	auto k = m_keys.find(ch);
+	if (k == m_keys.end())
+		return;
+	const CellState cur = m_keyState.count(ch) ? m_keyState[ch] : CS_EMPTY;
+	if (Rank(state) > Rank(cur))
+	{
+		m_keyState[ch] = state;
+		k->second->SetState(state);
+	}
+}
+
+void MainFrame::OnClock(wxTimerEvent &) { Timer::UpdateDisplayedTime(&m_clock, m_timerText); }
+
+void MainFrame::OnCharHook(wxKeyEvent &e)
+{
+	const int k = e.GetKeyCode();
+	if (k >= 'A' && k <= 'Z')
+		HandleKey(wxString(wxUniChar(k)));
+	else if (k == WXK_BACK)
+		HandleKey(wxT("DEL"));
+	else if (k == WXK_RETURN || k == WXK_NUMPAD_ENTER)
+		HandleKey(wxT("ENTER"));
+	else
+		e.Skip();
 }

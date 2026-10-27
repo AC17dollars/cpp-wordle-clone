@@ -1,89 +1,82 @@
-
 #pragma once
-#include <wx/app.h>
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/string.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/menu.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/statusbr.h>
-#include <wx/statbmp.h>
-#include <wx/stattext.h>
-#include <wx/textctrl.h>
-#include <wx/grid.h>
-#include <wx/gbsizer.h>
-#include <wx/frame.h>
-#include <fstream>
+#include <wx/wx.h>
+#include <wx/dcbuffer.h>
+#include <wx/statline.h>
+#include <functional>
+#include <map>
 #include "gamemechanics.h"
 #include "timer.h"
 
-#define PATH_TO_HEADER "../../img/wordlename.bmp"
 #define PATH_TO_ICON "../../img/Wordle.ico"
 
+// Tile / key states (also used to pick colours).
+enum CellState { CS_EMPTY, CS_FILLED, CS_ABSENT, CS_PRESENT, CS_CORRECT };
 
-///////////////////////////////////////////////////////////////////////////////
-/// Class MainFrame
-///////////////////////////////////////////////////////////////////////////////
+// A single board square: a letter drawn on a coloured/bordered background.
+class Tile : public wxWindow
+{
+public:
+	Tile(wxWindow *parent, int size);
+	void Set(const wxString &ch, CellState state);
+	void Reset();
 
+private:
+	void OnPaint(wxPaintEvent &);
+	wxString m_ch;
+	CellState m_state = CS_EMPTY;
+};
+
+// An on-screen keyboard key (rounded, clickable), coloured by its best state.
+class Key : public wxWindow
+{
+public:
+	Key(wxWindow *parent, const wxString &label, const wxSize &size,
+		std::function<void(const wxString &)> onPress);
+	void SetState(CellState state);
+
+private:
+	void OnPaint(wxPaintEvent &);
+	wxString m_label;
+	CellState m_state = CS_EMPTY;
+	std::function<void(const wxString &)> m_onPress;
+};
 
 class MainFrame : public wxFrame
 {
-	private:
+public:
+	MainFrame(wxWindow *parent, wxWindowID id = wxID_ANY, const wxString &title = wxT("Wordle"),
+			  const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxSize(560, 820),
+			  long style = wxDEFAULT_FRAME_STYLE);
+	~MainFrame();
 
-	protected:
-		enum
-		{
-			ID_Authors = 1000,
-			ID_TextBox = 1001,
-			ID_StartNewGame = 1002,
-			ID_GameGrid = 1003,
-			ID_LettersUsedGrid = 1004,
-			ID_Timer = 1005 // not used
-		};
+private:
+	enum { ID_StartNewGame = 1002, ID_Authors = 1000 };
 
-		wxMenuBar* MenuBar;
-		wxMenu* FileMenu;
-		wxMenu* AboutMenu;
-		wxStatusBar* StatusBar;
-		wxStaticBitmap* WordleTitlename;
-		wxStaticText* StatusStaticText;
-		wxStaticText* TimerStaticText;
-		wxStaticText *EnterWordText;
-		wxTextCtrl* TextBox;
-		wxGrid* GameGrid;
-		wxStaticText* LettersUsedText;
-		wxGrid* LettersUsedGrid;
-		wxTimer m_timer;
+	// view
+	Tile *m_board[6][5] = {};
+	std::map<wxChar, Key *> m_keys;
+	wxStaticText *m_status = nullptr;
+	wxStaticText *m_timerText = nullptr;
 
-		// event handlers
-		void OnStartNewGame(wxCommandEvent &event);
-		void QuitMenuItemOnMenuSelection(wxCommandEvent &event) { Close(true); }
-		void AuthorsOnMenuSelection( wxCommandEvent& event ) { event.Skip(); }
+	// state
+	int m_row = 0, m_col = 0;
+	wxString m_rowBuf;                   // letters typed in the current row
+	std::map<wxChar, CellState> m_keyState; // best state seen per letter
+	wxTimer m_clock;   // 1s game timer
+	wxTimer m_reveal;  // staggered reveal animation
+	int m_revealCol = 0;
+	CellState m_pending[5] = {};
+	wxString m_pendingWord;
+	bool m_revealing = false;
 
-		//to do things after user enters the text
-		void OnTextEnter(wxCommandEvent &event);
-		void UpdateLettersUsedGrid();
-
-		//for timer
-		//updates the time in the timer bar every second by timer event generated 
-		void OnUpdateDisplayedTime(wxTimerEvent& event);
-
-		//To check if letter is in used grid
-		wxGridCellCoords LetterInGrid(wxString character);
-
-		//to deselct grid cells
-
-
-	public:
-
-		MainFrame( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Wordle"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 624,549 ), long style = wxCAPTION|wxCLOSE_BOX|wxMINIMIZE_BOX|wxSYSTEM_MENU );
-
-		~MainFrame();
-
+	void NewGame();
+	void HandleKey(const wxString &label); // letter, "ENTER" or "DEL"
+	void SubmitGuess();
+	void OnCharHook(wxKeyEvent &);
+	void OnReveal(wxTimerEvent &);
+	void OnClock(wxTimerEvent &);
+	void UpgradeKey(wxChar ch, CellState state);
+	void SetStatus(const wxString &msg, const wxColour &colour);
+	wxString CurrentGuess() const;
+	Key *AddKey(wxSizer *rowSizer, const wxString &label, int width);
 };
